@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.db.mongodb import connect_to_mongo, close_mongo_connection, create_indexes
+from backend.app.db.database import connect_to_mongo, close_mongo_connection, create_indexes
 
 # Configure logging
 logging.basicConfig(

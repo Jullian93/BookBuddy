@@ -9,15 +9,17 @@ import json
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
-from bson import ObjectId
-from pymongo import MongoClient
+import uuid
 from passlib.context import CryptContext
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 
 # Add the parent directory to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.db.mongodb import get_database
+from app.db.database import SessionLocal, engine, Base
+from app.db.models import Book, User, BorrowedBook
+from app.core.config import settings
 
 # Configure logging
 logging.basicConfig(
@@ -49,12 +51,10 @@ def load_json_data(file_path):
         logger.error(f"Invalid JSON in file: {file_path}")
         return []
 
-def seed_books(db):
+def seed_books(db: Session):
     """Seed the database with books."""
-    books_collection = db["books"]
-    
     # Check if books already exist
-    if books_collection.count_documents({}) > 0:
+    if db.query(Book).count() > 0:
         logger.info("Books already exist in the database, skipping seeding")
         return
     
@@ -67,27 +67,34 @@ def seed_books(db):
         return
     
     # Add more detailed descriptions to books for better embeddings
-    enhanced_books = []
     for book in books:
-        # Convert numeric string ID to ObjectId for MongoDB
-        book["_id"] = ObjectId()
-        
         # Ensure book has a detailed description
         if not book.get("description") or len(book.get("description", "")) < 100:
             book["description"] = generate_detailed_description(book)
         
-        enhanced_books.append(book)
+        # Create Book object
+        db_book = Book(
+            id=uuid.uuid4(),
+            title=book.get("title"),
+            author=book.get("author"),
+            isbn=book.get("isbn"),
+            genre=book.get("genre"),
+            publication_year=book.get("publicationYear"),
+            publisher=book.get("publisher"),
+            description=book.get("description"),
+            copies=book.get("copies", 1),
+            copies_available=book.get("copiesAvailable", book.get("copies", 1)),
+            cover_image=book.get("coverImage")
+        )
+        db.add(db_book)
     
-    # Insert books into database
-    books_collection.insert_many(enhanced_books)
-    logger.info(f"Seeded {len(enhanced_books)} books")
+    db.commit()
+    logger.info(f"Seeded {len(books)} books")
 
-def seed_users(db):
+def seed_users(db: Session):
     """Seed the database with users."""
-    users_collection = db["users"]
-    
     # Check if users already exist
-    if users_collection.count_documents({}) > 0:
+    if db.query(User).count() > 0:
         logger.info("Users already exist in the database, skipping seeding")
         return
     
@@ -100,23 +107,29 @@ def seed_users(db):
         return
     
     # Hash passwords and prepare for DB
-    prepared_users = []
     for user in users:
-        user["_id"] = ObjectId()
-        user["hashed_password"] = hash_password(user.pop("password"))
-        user["created_at"] = datetime.now()
-        prepared_users.append(user)
+        # Create User object
+        db_user = User(
+            id=uuid.uuid4(),
+            email=user.get("email"),
+            first_name=user.get("firstName"),
+            last_name=user.get("lastName"),
+            hashed_password=hash_password(user.get("password")),
+            role=user.get("role"),
+            student_id=user.get("studentId"),
+            department=user.get("department"),
+            avatar=user.get("avatar"),
+            join_date=user.get("joinDate", datetime.utcnow())
+        )
+        db.add(db_user)
     
-    # Insert users into database
-    users_collection.insert_many(prepared_users)
-    logger.info(f"Seeded {len(prepared_users)} users")
+    db.commit()
+    logger.info(f"Seeded {len(users)} users")
 
-def seed_borrowed_books(db):
+def seed_borrowed_books(db: Session):
     """Seed the database with borrowed books."""
-    borrowed_collection = db["borrowed_books"]
-    
     # Check if borrowed books already exist
-    if borrowed_collection.count_documents({}) > 0:
+    if db.query(BorrowedBook).count() > 0:
         logger.info("Borrowed books already exist in the database, skipping seeding")
         return
     
@@ -128,21 +141,39 @@ def seed_borrowed_books(db):
         logger.warning("No borrowed books data to seed")
         return
     
-    # Convert date strings to datetime objects
-    prepared_borrowed = []
-    for item in borrowed_books:
-        item["_id"] = ObjectId()
-        item["borrow_date"] = datetime.fromisoformat(item["borrow_date"]) if "borrow_date" in item else datetime.now()
-        item["due_date"] = datetime.fromisoformat(item["due_date"]) if "due_date" in item else datetime.now() + timedelta(days=14)
-        
-        if "return_date" in item and item["return_date"]:
-            item["return_date"] = datetime.fromisoformat(item["return_date"])
-        
-        prepared_borrowed.append(item)
+    # Get all books and users for reference
+    books = {str(b.id): b for b in db.query(Book).all()}
+    users = {str(u.id): u for u in db.query(User).all()}
     
-    # Insert borrowed books into database
-    borrowed_collection.insert_many(prepared_borrowed)
-    logger.info(f"Seeded {len(prepared_borrowed)} borrowed books")
+    # Convert date strings to datetime objects
+    for item in borrowed_books:
+        # Find the corresponding book and user
+        book = books.get(str(item.get("book_id")))
+        user = users.get(str(item.get("user_id")))
+        
+        if not book or not user:
+            logger.warning(f"Skipping record with invalid book_id or user_id: {item}")
+            continue
+        
+        # Parse dates
+        borrow_date = datetime.fromisoformat(item.get("borrow_date")) if item.get("borrow_date") else datetime.utcnow()
+        due_date = datetime.fromisoformat(item.get("due_date")) if item.get("due_date") else (borrow_date + timedelta(days=14))
+        return_date = datetime.fromisoformat(item.get("return_date")) if item.get("return_date") else None
+        
+        # Create BorrowedBook object
+        db_borrow = BorrowedBook(
+            id=uuid.uuid4(),
+            book_id=book.id,
+            user_id=user.id,
+            borrow_date=borrow_date,
+            due_date=due_date,
+            return_date=return_date,
+            status=item.get("status", "borrowed")
+        )
+        db.add(db_borrow)
+    
+    db.commit()
+    logger.info(f"Seeded borrowed books successfully")
 
 def generate_detailed_description(book):
     """Generate a more detailed description for a book if the existing one is too short."""
@@ -175,19 +206,30 @@ def generate_detailed_description(book):
     from beginning to end, offering insights into human nature and society.
     """.strip()
 
+def create_tables():
+    """Create database tables."""
+    logger.info("Creating database tables...")
+    Base.metadata.create_all(bind=engine)
+
 def main():
     """Main function to seed the database."""
     try:
-        # Initialize MongoDB connection
-        db = get_database()
-        logger.info("MongoDB connection established")
+        # Create tables if they don't exist
+        create_tables()
         
-        # Seed the database
-        seed_users(db)
-        seed_books(db)
-        seed_borrowed_books(db)
+        # Create a database session
+        db = SessionLocal()
         
-        logger.info("Database seeding complete")
+        try:
+            # Seed the database
+            seed_users(db)
+            seed_books(db)
+            seed_borrowed_books(db)
+            
+            logger.info("Database seeding complete")
+        finally:
+            db.close()
+            
     except Exception as e:
         logger.error(f"Error seeding database: {e}")
         sys.exit(1)

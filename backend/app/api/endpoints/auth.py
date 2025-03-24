@@ -14,7 +14,7 @@ from app.core.security import (
     verify_password,
     get_current_active_user,
 )
-from app.db.mongodb import get_async_database
+from backend.app.db.database import get_async_database
 from app.models.user import Token, User
 
 router = APIRouter()

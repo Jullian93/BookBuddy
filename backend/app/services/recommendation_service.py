@@ -5,11 +5,14 @@ Service for generating book recommendations
 import logging
 import json
 from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+import uuid
 from openai import OpenAI
 
 from app.core.config import settings
 from app.db.vector_store import VectorStore
 from app.services.embedding_service import EmbeddingService
+from app.db.models import Book, User, BorrowedBook, BookEmbedding
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -22,44 +25,62 @@ class RecommendationService:
         self.embedding_service = EmbeddingService()
         self.vector_store = VectorStore()
     
-    async def get_reading_history(self, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+    def get_reading_history(self, db: Session, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
         Get a user's reading history.
         
         Args:
+            db: Database session
             user_id: The user ID
             limit: Maximum number of books to return
             
         Returns:
             List of books the user has borrowed, sorted by most recent first
         """
-        from app.db.mongodb import get_async_database
-        
-        db = await get_async_database()
-        
-        # Get the most recent borrowed books
-        borrowed_books = await db.borrowed_books.find(
-            {"user_id": user_id}
-        ).sort("borrow_date", -1).limit(limit).to_list(length=limit)
-        
-        # Get the complete book details for each borrowed book
-        result = []
-        for borrow in borrowed_books:
-            book = await db.books.find_one({"id": borrow["book_id"]})
-            if book:
-                # Add borrow information to book
-                book_with_borrow = {
-                    **book,
-                    "borrow_date": borrow.get("borrow_date"),
-                    "return_date": borrow.get("return_date"),
-                    "status": borrow.get("status")
-                }
-                result.append(book_with_borrow)
-        
-        return result
+        try:
+            user_uuid = uuid.UUID(user_id)
+            
+            # Get the most recent borrowed books
+            borrowed_records = (
+                db.query(BorrowedBook)
+                .filter(BorrowedBook.user_id == user_uuid)
+                .order_by(BorrowedBook.borrow_date.desc())
+                .limit(limit)
+                .all()
+            )
+            
+            # Get the complete book details for each borrowed book
+            result = []
+            for borrow in borrowed_records:
+                book = db.query(Book).filter(Book.id == borrow.book_id).first()
+                if book:
+                    # Add borrow information to book
+                    book_with_borrow = {
+                        "id": str(book.id),
+                        "title": book.title,
+                        "author": book.author,
+                        "isbn": book.isbn,
+                        "genre": book.genre,
+                        "publicationYear": book.publication_year,
+                        "publisher": book.publisher,
+                        "description": book.description,
+                        "copies": book.copies,
+                        "copiesAvailable": book.copies_available,
+                        "coverImage": book.cover_image,
+                        "borrowDate": borrow.borrow_date,
+                        "returnDate": borrow.return_date,
+                        "status": borrow.status
+                    }
+                    result.append(book_with_borrow)
+            
+            return result
+        except ValueError:
+            logger.error(f"Invalid UUID format for user_id: {user_id}")
+            return []
     
     async def generate_recommendations(
         self, 
+        db: Session,
         user_id: str, 
         num_recommendations: int = settings.NUM_RECOMMENDATIONS
     ) -> Dict[str, Any]:
@@ -67,6 +88,7 @@ class RecommendationService:
         Generate book recommendations for a user based on their reading history.
         
         Args:
+            db: Database session
             user_id: The user ID
             num_recommendations: Number of recommendations to generate
             
@@ -74,7 +96,7 @@ class RecommendationService:
             Dictionary containing recommendations and explanation
         """
         # Get the user's reading history
-        reading_history = await self.get_reading_history(user_id, limit=5)
+        reading_history = self.get_reading_history(db, user_id, limit=5)
         
         if not reading_history:
             logger.warning(f"No reading history found for user {user_id}")
@@ -90,13 +112,14 @@ class RecommendationService:
         book_embeddings = []
         for book in recent_books:
             # First try to get existing embedding
-            embedding = await self.vector_store.get_book_embedding(book["id"])
+            embedding = self.vector_store.get_book_embedding(db, book["id"])
             
             # If not found, generate a new one
             if not embedding:
                 embedding = await self.embedding_service.create_embedding_for_book(book)
                 # Save the embedding for future use
-                await self.vector_store.save_embedding(book["id"], embedding)
+                if embedding:
+                    self.vector_store.save_embedding(db, book["id"], embedding)
             
             if embedding:
                 book_embeddings.append(embedding)
@@ -110,11 +133,12 @@ class RecommendationService:
             }
         
         # Combine embeddings from recent books to create a preference vector
-        preference_embedding = await self.vector_store.combine_embeddings(book_embeddings)
+        preference_embedding = self.vector_store.combine_embeddings(book_embeddings)
         
         # Get similar books based on the preference embedding
         exclude_ids = [book["id"] for book in reading_history]  # Exclude books the user has already read
         similar_books = await self.vector_store.find_similar_books(
+            db,
             preference_embedding, 
             n=settings.NUM_SIMILAR_BOOKS,
             exclude_book_ids=exclude_ids

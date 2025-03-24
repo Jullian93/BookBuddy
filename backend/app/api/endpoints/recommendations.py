@@ -73,7 +73,7 @@ async def get_similar_books(
     recommendation_service: RecommendationService = Depends()
 ):
     """Get books similar to a specific book"""
-    from app.db.mongodb import get_async_database
+    from backend.app.db.database import get_async_database
     from app.db.vector_store import VectorStore
     
     # Get the book

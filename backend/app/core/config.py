@@ -21,8 +21,8 @@ class Settings(BaseModel):
     # CORS settings
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
     
-    # MongoDB settings
-    MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017/library_system")
+    # Database settings
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/library_system")
     
     # JWT settings
     JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key")

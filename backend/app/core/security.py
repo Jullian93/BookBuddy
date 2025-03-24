@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from app.models.user import User, TokenPayload
 from app.core.config import settings
-from app.db.mongodb import get_async_database
+from backend.app.db.database import get_async_database
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

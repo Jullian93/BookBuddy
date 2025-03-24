@@ -14,7 +14,7 @@ const Footer = () => {
                 <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <span className="ml-2 text-xl font-serif font-bold">LibrarySystem</span>
+              <span className="ml-2 text-xl font-serif font-bold">BookBuddy</span>
             </Link>
             <p className="mt-4 text-sm text-gray-300">
               Your comprehensive solution for modern library management.
@@ -61,7 +61,7 @@ const Footer = () => {
                 <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                <span>contact@librarysystem.com</span>
+                <span>contact@BookBuddy.com</span>
               </li>
               <li className="flex items-center">
                 <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -82,7 +82,7 @@ const Footer = () => {
         
         <div className="border-t border-gray-700 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <div className="text-sm text-gray-400">
-            &copy; {currentYear} LibrarySystem. All rights reserved.
+            &copy; {currentYear} BookBuddy. All rights reserved.
           </div>
           
           <div className="flex space-x-4 mt-4 md:mt-0">

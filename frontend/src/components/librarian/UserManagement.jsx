@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Button from '../common/Button';
 import { formatDate } from '../../utils/helpers';
+import RecommendationModal from './RecommendationModal';
 
 const UserManagement = ({ users, onEdit, onDelete, onAdd, borrowedBooks }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -9,6 +10,9 @@ const UserManagement = ({ users, onEdit, onDelete, onAdd, borrowedBooks }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState(false);
+  const [isRecommendationModalOpen, setIsRecommendationModalOpen] = useState(false);
+  const [recommendations, setRecommendations] = useState(null);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [newUser, setNewUser] = useState({
     firstName: '',
     lastName: '',
@@ -98,6 +102,63 @@ const UserManagement = ({ users, onEdit, onDelete, onAdd, borrowedBooks }) => {
   // Get borrowed books by user
   const getUserBorrowedBooks = (userId) => {
     return borrowedBooks.filter(book => book.userId === userId);
+  };
+
+  // Handle getting recommendations
+  const handleGetRecommendations = async (userId) => {
+    setIsLoadingRecommendations(true);
+    setRecommendations(null);
+    
+    // In a real app, this would be an API call
+    // For this demo, we'll simulate an API call with a timeout
+    setTimeout(() => {
+      // Simulate API response
+      const mockRecommendations = {
+        recommendations: [
+          {
+            id: 3,
+            title: "Pride and Prejudice",
+            author: "Jane Austen",
+            genre: "Classic",
+            publicationYear: 1813,
+            publisher: "Penguin Classics",
+            coverImage: "https://via.placeholder.com/150x200?text=Pride+and+Prejudice",
+            recommendation_reason: "This classic romance has themes of social class and personal growth that would appeal to a reader who enjoyed 'To Kill a Mockingbird' and its exploration of social justice."
+          },
+          {
+            id: 6,
+            title: "One Hundred Years of Solitude",
+            author: "Gabriel García Márquez",
+            genre: "Magical Realism",
+            publicationYear: 1967,
+            publisher: "Harper & Row",
+            coverImage: "https://via.placeholder.com/150x200?text=One+Hundred+Years+of+Solitude",
+            recommendation_reason: "Like '1984', this novel uses unconventional narrative techniques to explore deep social and political themes, but through the lens of magical realism."
+          },
+          {
+            id: 8,
+            title: "The Hobbit",
+            author: "J.R.R. Tolkien",
+            genre: "Fantasy",
+            publicationYear: 1937,
+            publisher: "Houghton Mifflin Harcourt",
+            coverImage: "https://via.placeholder.com/150x200?text=The+Hobbit",
+            recommendation_reason: "Based on the student's interest in complex narratives like '1984', this fantasy classic offers a similarly immersive world with rich character development and themes of courage and personal growth."
+          }
+        ],
+        explanation: "These recommendations are based on the student's recent reading history, which shows an interest in both classic literature with strong character development and books that explore social themes. I've selected books that continue these themes while introducing some literary variety."
+      };
+      
+      setRecommendations(mockRecommendations);
+      setIsLoadingRecommendations(false);
+    }, 2000);
+  };
+  
+  // Open recommendation modal
+  const openRecommendationModal = (user) => {
+    setSelectedUser(user);
+    setRecommendations(null);
+    setIsRecommendationModalOpen(true);
   };
   
   return (
@@ -207,29 +268,38 @@ const UserManagement = ({ users, onEdit, onDelete, onAdd, borrowedBooks }) => {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="mr-2"
-                      onClick={() => openDetailsModal(user)}
-                    >
-                      Details
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="mr-2"
-                      onClick={() => openEditModal(user)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="xs"
-                      onClick={() => openDeleteModal(user)}
-                    >
-                      Delete
-                    </Button>
+                    <div className="flex justify-end space-x-2">
+                      {user.role === 'student' && (
+                        <Button
+                          variant="primary"
+                          size="xs"
+                          onClick={() => openRecommendationModal(user)}
+                        >
+                          Suggest Books
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => openDetailsModal(user)}
+                      >
+                        Details
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => openEditModal(user)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="xs"
+                        onClick={() => openDeleteModal(user)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -736,6 +806,18 @@ const UserManagement = ({ users, onEdit, onDelete, onAdd, borrowedBooks }) => {
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Recommendation Modal */}
+      {isRecommendationModalOpen && selectedUser && (
+        <RecommendationModal
+          isOpen={isRecommendationModalOpen}
+          onClose={() => setIsRecommendationModalOpen(false)}
+          user={selectedUser}
+          onGetRecommendations={handleGetRecommendations}
+          recommendations={recommendations}
+          isLoading={isLoadingRecommendations}
+        />
       )}
     </div>
   );
