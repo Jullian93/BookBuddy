@@ -10,8 +10,8 @@ backend/
 │   ├── api/
 │   │   ├── endpoints/
 │   │   │   ├── auth.py
-│   │   │   ├── books.py
-│   │   │   ├── users.py
+│   │   │   ├── books.py - under construction
+│   │   │   ├── users.py - under construction
 │   │   │   └── recommendations.py
 │   │   ├── dependencies.py
 │   │   └── router.py
@@ -29,8 +29,8 @@ backend/
 │   ├── services/
 │   │   ├── recommendation_service.py
 │   │   ├── embedding_service.py
-│   │   ├── book_service.py
-│   │   └── user_service.py
+│   │   ├── book_service.py - under construction
+│   │   └── user_service.py - under construction
 │   └── main.py
 ├── scripts/
 │   ├── generate_embeddings.py
