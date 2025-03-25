@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
-from backend.app.db.database import connect_to_mongo, close_mongo_connection, create_indexes
+from app.db.database import Base, engine
 
 # Configure logging
 logging.basicConfig(
@@ -38,16 +38,13 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 # Event handlers for startup and shutdown
 @app.on_event("startup")
 async def startup_event():
-    """Connect to MongoDB on startup."""
+    """Create tables on startup if they don't exist."""
     logger.info("Starting up...")
-    await connect_to_mongo()
-    await create_indexes()
+    # Create tables if they don't exist
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created/verified")
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Close MongoDB connection on shutdown."""
-    logger.info("Shutting down...")
-    await close_mongo_connection()
+# No shutdown handler needed for SQLAlchemy as it's handled automatically
 
 @app.get("/")
 async def root():
