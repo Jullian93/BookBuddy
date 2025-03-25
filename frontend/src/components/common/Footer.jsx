@@ -17,7 +17,7 @@ const Footer = () => {
               <span className="ml-2 text-xl font-serif font-bold">BookBuddy</span>
             </Link>
             <p className="mt-4 text-sm text-gray-300">
-              Your comprehensive solution for modern library management.
+              Your comprehensive solution for AI powered book recommendations.
             </p>
           </div>
           
